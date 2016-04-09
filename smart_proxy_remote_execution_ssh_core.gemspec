@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'smart_proxy_remote_execution_ssh/version'
 
 Gem::Specification.new do |gem|
-  gem.name          = "smart_proxy_remote_execution_ssh"
+  gem.name          = "smart_proxy_remote_execution_ssh_core"
   gem.version       = Proxy::RemoteExecution::Ssh::VERSION
   gem.authors       = ['Ivan Nečas']
   gem.email         = ['inecas@redhat.com']
@@ -28,7 +28,7 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency('rack-test', '~> 0')
   gem.add_development_dependency('rubocop', '0.32.1')
 
-  gem.add_runtime_dependency('smart_proxy_dynflow', '~> 0.0.3')
+  gem.add_runtime_dependency('smart_proxy_dynflow_core', '~> 0.0.3')
 
   gem.add_runtime_dependency('net-ssh')
   gem.add_runtime_dependency('net-scp')

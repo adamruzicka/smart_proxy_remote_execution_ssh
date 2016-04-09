@@ -1,7 +1,7 @@
 module Proxy::RemoteExecution::Ssh
   class CommandAction < ::Dynflow::Action
     include Dynflow::Action::Cancellable
-    include ::Proxy::Dynflow::Callback::PlanHelper
+    include ::SmartProxyDynflowCore::Callback::PlanHelper
 
     def plan(input)
       if callback = input['callback']

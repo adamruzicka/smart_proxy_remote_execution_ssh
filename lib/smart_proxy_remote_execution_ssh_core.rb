@@ -1,6 +1,10 @@
-require 'smart_proxy_remote_execution_ssh/version'
-require 'smart_proxy_dynflow'
-require 'smart_proxy_remote_execution_ssh/plugin'
+require 'smart_proxy_remote_execution_ssh_core/version'
+require 'smart_proxy_dynflow_core'
+require 'smart_proxy_remote_execution_ssh_core/command_action'
+require 'smart_proxy_remote_execution_ssh_core/command_update'
+require 'smart_proxy_remote_execution_ssh_core/connector'
+require 'smart_proxy_remote_execution_ssh_core/dispatcher'
+require 'smart_proxy_remote_execution_ssh_core/session'
 
 module Proxy::RemoteExecution
   module Ssh
@@ -20,8 +24,8 @@ module Proxy::RemoteExecution
         end
 
         @dispatcher = Proxy::RemoteExecution::Ssh::Dispatcher.spawn('proxy-ssh-dispatcher',
-                                                                    :clock  => Proxy::Dynflow.instance.world.clock,
-                                                                    :logger => Proxy::Dynflow.instance.world.logger)
+                                                                    :clock  => SmartProxyDynflowCore::Core.instance.world.clock,
+                                                                    :logger => SmartProxyDynflowCore::Core.instance.world.logger)
       end
 
       def dispatcher
@@ -29,7 +33,7 @@ module Proxy::RemoteExecution
       end
 
       def private_key_file
-        File.expand_path(Ssh::Plugin.settings.ssh_identity_key_file)
+        File.expand_path(SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:ssh_identity_key_file))
       end
 
       def public_key_file
@@ -38,5 +42,3 @@ module Proxy::RemoteExecution
     end
   end
 end
-
-Proxy::Dynflow.after_initialize { Proxy::RemoteExecution::Ssh.initialize }

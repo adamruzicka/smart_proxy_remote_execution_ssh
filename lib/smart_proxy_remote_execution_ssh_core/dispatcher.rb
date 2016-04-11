@@ -36,9 +36,9 @@ module Proxy::RemoteExecution::Ssh
       @session_args = { :logger => @logger,
                         :clock => @clock,
                         :connector_class => options[:connector_class] || Connector,
-                        :local_working_dir => options[:local_working_dir] || SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:local_working_dir),
-                        :remote_working_dir => options[:remote_working_dir] || SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:remote_working_dir),
-                        :client_private_key_file => SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:ssh_identity_key_file),
+                        :local_working_dir => options[:local_working_dir] || SmartProxyDynflowCore::SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:local_working_dir),
+                        :remote_working_dir => options[:remote_working_dir] || SmartProxyDynflowCore::SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:remote_working_dir),
+                        :client_private_key_file => SmartProxyDynflowCore::SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:ssh_identity_key_file),
                         :refresh_interval => options[:refresh_interval] || 1 }
 
       @sessions = {}

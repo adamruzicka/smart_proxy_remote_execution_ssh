@@ -33,7 +33,7 @@ module Proxy::RemoteExecution
       end
 
       def private_key_file
-        File.expand_path(SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:ssh_identity_key_file))
+        File.expand_path(SmartProxyDynflowCore::SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:ssh_identity_key_file))
       end
 
       def public_key_file

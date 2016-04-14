@@ -42,3 +42,5 @@ module Proxy::RemoteExecution
     end
   end
 end
+
+SmartProxyDynflowCore::Core.after_initialize { Proxy::RemoteExecution::Ssh.initialize }

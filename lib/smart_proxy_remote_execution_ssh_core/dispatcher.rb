@@ -1,4 +1,4 @@
-require 'smart_proxy_remote_execution_ssh/session'
+require 'smart_proxy_remote_execution_ssh_core/session'
 
 module Proxy::RemoteExecution::Ssh
   # Service that handles running external commands for Actions::Command

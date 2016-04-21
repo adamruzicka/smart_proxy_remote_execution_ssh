@@ -1,5 +1,3 @@
-require 'smart_proxy_remote_execution_ssh/session'
-
 module Proxy::RemoteExecution::Ssh
   # Service that handles running external commands for Actions::Command
   # Dynflow action. It runs just one (actor) thread for all the commands

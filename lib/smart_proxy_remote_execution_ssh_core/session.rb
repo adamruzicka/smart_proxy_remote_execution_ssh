@@ -9,10 +9,10 @@ module Proxy::RemoteExecution::Ssh
       @clock = options[:clock] || Dynflow::Clock.spawn('proxy-dispatcher-clock')
       @logger = options[:logger] || Logger.new($stderr)
       @connector_class = options[:connector_class] || Connector
-      @local_working_dir = options[:local_working_dir] || SmartProxyDynflowCore::SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:local_working_dir)
-      @remote_working_dir = options[:remote_working_dir] || SmartProxyDynflowCore::SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:remote_working_dir)
+      @local_working_dir = options[:local_working_dir] || Settings.instance.local_working_dir
+      @remote_working_dir = options[:remote_working_dir] || Settings.instance.remote_working_dir
       @refresh_interval = options[:refresh_interval] || 1
-      @client_private_key_file = SmartProxyDynflowCore::SETTINGS['smart_proxy_remote_execution_ssh_core'].fetch(:ssh_identity_key_file)
+      @client_private_key_file = Settings.instance.ssh_identity_key_file
       @command = options[:command]
 
       @command_buffer = []

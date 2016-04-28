@@ -28,11 +28,7 @@ logdir = File.join(File.dirname(__FILE__), '..', 'logs')
 FileUtils.mkdir_p(logdir) unless File.exist?(logdir)
 
 def prepare_fake_keys
-  SmartProxyDynflowCore::SETTINGS['smart_proxy_remote_execution_ssh_core'] = {
-    :ssh_identity_key_file => FAKE_PRIVATE_KEY_FILE,
-    :local_working_dir => '/tmp',
-    :remote_working_dir => '/tmp'
-  }
+  Proxy::RemoteExecution::Ssh::Settings.create!(:local_working_dir => DATA_DIR, :ssh_identity_key_file => FAKE_PRIVATE_KEY_FILE)
   FileUtils.mkdir_p(DATA_DIR) unless File.exist?(DATA_DIR)
   File.write(FAKE_PRIVATE_KEY_FILE, '===private-key===')
   File.write(FAKE_PUBLIC_KEY_FILE, '===public-key===')
@@ -40,7 +36,7 @@ end
 
 prepare_fake_keys
 
-SmartProxyDynflowCore::SETTINGS['smart_proxy_dynflow_core'] = {}
+SmartProxyDynflowCore::Settings.instance.database = nil
 WORLD = SmartProxyDynflowCore::Dynflow::Testing.create_world
 SmartProxyDynflowCore::Core.instance.world = WORLD
 

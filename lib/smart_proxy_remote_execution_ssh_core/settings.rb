@@ -14,6 +14,12 @@ module Proxy::RemoteExecution::Ssh
       super(DEFAULT_SETTINGS.merge(settings))
     end
 
+    def load_settings_from_proxy
+      DEFAULT_SETTINGS.keys.each do |key|
+        self.class.instance[key] = Proxy::RemoteExecution::Ssh::Plugin.settings[key]
+      end
+    end
+
     def self.create!(input = {})
       settings = Proxy::RemoteExecution::Ssh::Settings.new input
       self.instance = settings

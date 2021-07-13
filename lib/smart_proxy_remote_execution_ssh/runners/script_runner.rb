@@ -273,7 +273,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options[:keys_only] = true
       # if the host public key is contained in the known_hosts_file,
       # verify it, otherwise, if missing, import it and continue
-      ssh_options[:paranoid] = true
+      ssh_options[:verify_host_key] = :accept_new_or_local_tunnel
       ssh_options[:auth_methods] = available_authentication_methods
       ssh_options[:user_known_hosts_file] = prepare_known_hosts if @host_public_key
       ssh_options[:number_of_password_prompts] = 1

@@ -1,5 +1,6 @@
 require 'net/ssh'
 require 'forwardable'
+require 'pry-remote'
 
 module Proxy::RemoteExecution
   module Cockpit
@@ -137,19 +138,20 @@ module Proxy::RemoteExecution
       private
 
       def ssh_on_socket
-        with_error_handling { start_ssh_loop }
+        with_error_handling { system_ssh_loop }
       end
 
       def with_error_handling
         yield
-      rescue Net::SSH::AuthenticationFailed => e
-        send_error(401, e.message)
-      rescue Errno::EHOSTUNREACH
-        send_error(400, "No route to #{host}")
-      rescue SystemCallError => e
-        send_error(400, e.message)
-      rescue SocketError => e
-        send_error(400, e.message)
+      # TODO
+      # rescue Net::SSH::AuthenticationFailed => e
+      #   send_error(401, e.message)
+      # rescue Errno::EHOSTUNREACH
+      #   send_error(400, "No route to #{host}")
+      # rescue SystemCallError => e
+      #   send_error(400, e.message)
+      # rescue SocketError => e
+      #   send_error(400, e.message)
       rescue Exception => e
         logger.error e.message
         logger.debug e.backtrace.join("\n")
@@ -161,6 +163,59 @@ module Proxy::RemoteExecution
         end
       end
 
+      def system_ssh_loop
+        in_read, in_write   = IO.pipe
+        out_read, out_write = IO.pipe
+        err_read, err_write = IO.pipe
+
+        args = []
+        # TODO
+        # args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
+        ssh_options = [
+          "-o User=#{ssh_user}",
+          '-i', key_file
+        ]
+        args += ['/usr/bin/ssh', host, ssh_options, command].flatten
+        pid = spawn(*args, :in => in_read, :out => out_write, :err => err_write)
+        [in_read, out_write, err_write].each(&:close)
+
+        send_start
+        err_buf_raw = ''
+        # Not SSL buffer, but the interface kinda matches
+        out_buf = MiniSSLBufferedSocket.new(out_read)
+        err_buf = MiniSSLBufferedSocket.new(err_read)
+        in_buf  = MiniSSLBufferedSocket.new(in_write)
+
+        readers = [buf_socket, out_buf, err_buf]
+
+        loop do
+          # Prime the sockets for reading
+          ready_readers, ready_writers = IO.select(readers, [buf_socket, in_buf], nil, 300)
+          (ready_readers || []) .each { |reader| reader.close if reader.fill.zero? }
+
+          { out_buf => buf_socket, buf_socket => in_buf }.each do |src, dst|
+            dst.enqueue(src.read_available) if src.available.positive?
+            dst.close if src.closed?
+          end
+
+          if out_buf.closed?
+            code = Process.wait2(pid).last.exitstatus
+            send_start if code.zero? # TODO: Why?
+            err_buf_raw += "Process exited with code #{code}.\r\n"
+            break
+          end
+
+          if err_buf.available.positive?
+            err_buf_raw += sock.read_nonblock(err_buf.read_available)
+          end
+
+          (ready_writers || []).each { |writer| writer.respond_to?(:send_pending) ? writer.send_pending : writer.flush }
+        end
+      rescue => e
+        send_error(400, err_buf_raw) unless @started
+      end
+
+      # TODO: Remove
       def start_ssh_loop
         err_buf = ""
 
@@ -215,6 +270,7 @@ module Proxy::RemoteExecution
           buf_socket.enqueue("Connection: upgrade\r\n")
           buf_socket.enqueue("Upgrade: raw\r\n")
           buf_socket.enqueue("\r\n")
+          buf_socket.send_pending
         end
       end
 
@@ -223,6 +279,7 @@ module Proxy::RemoteExecution
         buf_socket.enqueue("Connection: close\r\n")
         buf_socket.enqueue("\r\n")
         buf_socket.enqueue(msg)
+        buf_socket.send_pending
       end
 
       def params
@@ -249,6 +306,7 @@ module Proxy::RemoteExecution
         params["hostname"]
       end
 
+      # TODO: Map to ssh options
       def ssh_options
         auth_methods = %w[publickey]
         auth_methods.unshift('password') if params["ssh_password"]

@@ -228,14 +228,14 @@ module Proxy::RemoteExecution::Ssh::Runners
     # Creates session with two pipes - one for reading and one for
     # writing. Similar to `Open3.popen2` method but without creating
     # separate thread to monitor it.
-    def session(command)
+    def session(command, with_pty: false)
       @session = true
 
       in_read, in_write = IO.pipe
       out_read, out_write = IO.pipe
       args = []
       args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-      args += ['/usr/bin/ssh', @host, ssh_options, command].flatten
+      args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
       command_pid = spawn(*args, :in => in_read, [:out, :err] => out_write)
       in_read.close
       out_write.close
@@ -243,8 +243,9 @@ module Proxy::RemoteExecution::Ssh::Runners
       return in_write, out_read, command_pid
     end
 
-    def ssh_options
+    def ssh_options(with_pty = false)
       ssh_options = []
+      ssh_options << "-tt" if with_pty
       ssh_options << "-o User=#{@ssh_user}"
       ssh_options << "-o Port=#{@ssh_port}" if @ssh_port
       ssh_options << "-o IdentityFile=#{@client_private_key_file}" if @client_private_key_file
@@ -271,7 +272,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       @started = false
       @user_method.reset
-      @command_in, @command_out, @command_pid = session(command)
+      @command_in, @command_out, @command_pid = session(command, with_pty: true)
       @started = true
 
       return true

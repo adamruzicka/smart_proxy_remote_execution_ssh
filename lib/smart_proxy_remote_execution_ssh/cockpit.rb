@@ -1,4 +1,5 @@
-require 'net/ssh'
+# require 'net/ssh'
+require 'smart_proxy_remote_execution_ssh/net_ssh_compat'
 require 'forwardable'
 require 'pry-remote'
 
@@ -6,7 +7,7 @@ module Proxy::RemoteExecution
   module Cockpit
     # A wrapper class around different kind of sockets to comply with Net::SSH event loop
     class BufferedSocket
-      include Net::SSH::BufferedIo
+      include Proxy::RemoteExecution::NetSSHCompat::BufferedIO
       extend Forwardable
 
       # The list of methods taken from OpenSSL::SSL::SocketForwarder for the object to act like a socket

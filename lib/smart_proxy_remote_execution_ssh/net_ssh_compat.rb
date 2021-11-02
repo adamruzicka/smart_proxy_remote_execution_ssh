@@ -457,14 +457,6 @@ module Proxy::RemoteExecution
       #       # ...
       #     end
       #   end
-  
-      # Called when the #extend is called on an object, with this module as the
-      # argument. It ensures that the modules instance variables are all properly
-      # initialized.
-      def self.extended(object) # :nodoc:
-        # need to use __send__ because #send is overridden in Socket
-        object.__send__(:initialize_buffered_io)
-      end
 
       # Tries to read up to +n+ bytes of data from the remote end, and appends
       # the data to the input buffer. It returns the number of bytes read, or 0

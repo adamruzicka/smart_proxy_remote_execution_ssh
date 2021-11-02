@@ -129,6 +129,7 @@ module Proxy::RemoteExecution
           begin
             @env['rack.hijack'].call
           rescue NotImplementedError
+            # This is fine
           end
           @socket = @env['rack.hijack_io']
         end
@@ -181,23 +182,25 @@ module Proxy::RemoteExecution
         [in_read, out_write, err_write].each(&:close)
 
         send_start
-        err_buf_raw = ''
         # Not SSL buffer, but the interface kinda matches
         out_buf = MiniSSLBufferedSocket.new(out_read)
         err_buf = MiniSSLBufferedSocket.new(err_read)
         in_buf  = MiniSSLBufferedSocket.new(in_write)
 
-        readers = [buf_socket, out_buf, err_buf]
+        system_ssh_loop2 out_buf, err_buf, in_buf, pid
+      rescue # rubocop:disable Style/RescueStandardError
+        send_error(400, err_buf_raw) unless @started
+      end
 
+      def system_ssh_loop2(out_buf, err_buf, in_buf, pid)
+        err_buf_raw = ''
+        readers = [buf_socket, out_buf, err_buf]
         loop do
           # Prime the sockets for reading
           ready_readers, ready_writers = IO.select(readers, [buf_socket, in_buf], nil, 300)
           (ready_readers || []).each { |reader| reader.close if reader.fill.zero? }
 
-          { out_buf => buf_socket, buf_socket => in_buf }.each do |src, dst|
-            dst.enqueue(src.read_available) if src.available.positive?
-            dst.close if src.closed?
-          end
+          proxy_data(out_buf, in_buf)
 
           if out_buf.closed?
             code = Process.wait2(pid).last.exitstatus
@@ -210,57 +213,20 @@ module Proxy::RemoteExecution
             err_buf_raw += sock.read_nonblock(err_buf.read_available)
           end
 
-          (ready_writers || []).each { |writer| writer.respond_to?(:send_pending) ? writer.send_pending : writer.flush }
+          flush_pending_writes(ready_writers || [])
         end
-      rescue
-        send_error(400, err_buf_raw) unless @started
       end
 
-      # TODO: Remove
-      def start_ssh_loop
-        err_buf = ""
+      def proxy_data(out_buf, in_buf)
+        { out_buf => buf_socket, buf_socket => in_buf }.each do |src, dst|
+          dst.enqueue(src.read_available) if src.available.positive?
+          dst.close if src.closed?
+        end
+      end
 
-        Net::SSH.start(host, ssh_user, ssh_options) do |ssh|
-          channel = ssh.open_channel do |ch|
-            ch.exec(command) do |ch, success|
-              raise "could not execute command" unless success
-
-              ssh.listen_to(buf_socket)
-
-              ch.on_process do
-                if buf_socket.available.positive?
-                  ch.send_data(buf_socket.read_available)
-                end
-                if buf_socket.closed?
-                  ch.close
-                end
-              end
-
-              ch.on_data do |ch2, data|
-                send_start
-                buf_socket.enqueue(data)
-              end
-
-              ch.on_request('exit-status') do |ch, data|
-                code = data.read_long
-                send_start if code.zero?
-                err_buf += "Process exited with code #{code}.\r\n"
-                ch.close
-              end
-
-              ch.on_request('exit-signal') do |ch, data|
-                err_buf += "Process was terminated with signal #{data.read_string}.\r\n"
-                ch.close
-              end
-
-              ch.on_extended_data do |ch2, type, data|
-                err_buf += data
-              end
-            end
-          end
-
-          channel.wait
-          send_error(400, err_buf) unless @started
+      def flush_pending_writes(writers)
+        writers.each do |writer|
+          writer.respond_to?(:send_pending) ? writer.send_pending : writer.flush
         end
       end
 
@@ -305,23 +271,6 @@ module Proxy::RemoteExecution
 
       def host
         params["hostname"]
-      end
-
-      # TODO: Map to ssh options
-      def ssh_options
-        auth_methods = %w[publickey]
-        auth_methods.unshift('password') if params["ssh_password"]
-
-        ret = {}
-        ret[:port] = params["ssh_port"] if params["ssh_port"]
-        ret[:keys] = [key_file] if key_file
-        ret[:password] = params["ssh_password"] if params["ssh_password"]
-        ret[:passphrase] = params["ssh_key_passphrase"] if params["ssh_key_passphrase"]
-        ret[:keys_only] = true
-        ret[:auth_methods] = auth_methods
-        ret[:verify_host_key] = true
-        ret[:number_of_password_prompts] = 1
-        ret
       end
     end
   end

@@ -54,14 +54,14 @@ module Proxy::RemoteExecution
       end
       def_delegators(:@socket, :read_nonblock, :write_nonblock, :close)
 
-      def recv(n)
+      def recv(count)
         res = ""
         begin
           # To drain a SSLSocket before we can go back to the event
           # loop, we need to repeatedly call read_nonblock; a single
           # call is not enough.
           loop do
-            res += @socket.read_nonblock(n)
+            res += @socket.read_nonblock(count)
           end
         rescue IO::WaitReadable
           # Sometimes there is no payload after reading everything
@@ -97,8 +97,8 @@ module Proxy::RemoteExecution
       end
       def_delegators(:@socket, :read_nonblock, :write_nonblock, :close)
 
-      def recv(n)
-        @socket.read_nonblock(n)
+      def recv(count)
+        @socket.read_nonblock(count)
       end
 
       def send(mesg, flags)
@@ -192,7 +192,7 @@ module Proxy::RemoteExecution
         loop do
           # Prime the sockets for reading
           ready_readers, ready_writers = IO.select(readers, [buf_socket, in_buf], nil, 300)
-          (ready_readers || []) .each { |reader| reader.close if reader.fill.zero? }
+          (ready_readers || []).each { |reader| reader.close if reader.fill.zero? }
 
           { out_buf => buf_socket, buf_socket => in_buf }.each do |src, dst|
             dst.enqueue(src.read_available) if src.available.positive?
@@ -212,7 +212,7 @@ module Proxy::RemoteExecution
 
           (ready_writers || []).each { |writer| writer.respond_to?(:send_pending) ? writer.send_pending : writer.flush }
         end
-      rescue => e
+      rescue
         send_error(400, err_buf_raw) unless @started
       end
 
@@ -292,7 +292,7 @@ module Proxy::RemoteExecution
       end
 
       def buf_socket
-        @buffered_socket ||= BufferedSocket.build(@socket)
+        @buf_socket ||= BufferedSocket.build(@socket)
       end
 
       def command

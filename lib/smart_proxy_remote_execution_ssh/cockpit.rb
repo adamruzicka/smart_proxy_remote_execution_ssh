@@ -170,15 +170,7 @@ module Proxy::RemoteExecution
         out_read, out_write = IO.pipe
         err_read, err_write = IO.pipe
 
-        args = []
-        # TODO
-        # args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-        ssh_options = [
-          "-o User=#{ssh_user}",
-          '-i', key_file
-        ]
-        args += ['/usr/bin/ssh', host, ssh_options, command].flatten
-        pid = spawn(*args, :in => in_read, :out => out_write, :err => err_write)
+        pid = spawn(*script_runner.send(:get_args, command), :in => in_read, :out => out_write, :err => err_write)
         [in_read, out_write, err_write].each(&:close)
 
         send_start
@@ -188,8 +180,6 @@ module Proxy::RemoteExecution
         in_buf  = MiniSSLBufferedSocket.new(in_write)
 
         system_ssh_loop2 out_buf, err_buf, in_buf, pid
-      rescue # rubocop:disable Style/RescueStandardError
-        send_error(400, err_buf_raw) unless @started
       end
 
       def system_ssh_loop2(out_buf, err_buf, in_buf, pid)
@@ -210,11 +200,13 @@ module Proxy::RemoteExecution
           end
 
           if err_buf.available.positive?
-            err_buf_raw += sock.read_nonblock(err_buf.read_available)
+            err_buf_raw += err_buf.read_available
           end
 
           flush_pending_writes(ready_writers || [])
         end
+      rescue # rubocop:disable Style/RescueStandardError
+        send_error(400, err_buf_raw) unless @started
       end
 
       def proxy_data(out_buf, in_buf)
@@ -265,12 +257,27 @@ module Proxy::RemoteExecution
         params["command"]
       end
 
-      def ssh_user
-        params["ssh_user"]
-      end
-
       def host
         params["hostname"]
+      end
+
+      def script_runner
+        @script_runner ||= Proxy::RemoteExecution::Ssh::Runners::ScriptRunner.build(
+          runner_params,
+          suspended_action: nil
+        )
+      end
+
+      def runner_params
+        ret = { secrets: {} }
+        ret[:secrets][:ssh_password] = params["ssh_password"] if params["ssh_password"]
+        ret[:secrets][:key_passphrase] = params["ssh_key_passphrase"] if params["ssh_key_passphrase"]
+        ret[:ssh_port] = params["ssh_port"] if params["ssh_port"]
+        ret[:ssh_user] = params["ssh_user"]
+        # For compatibility only
+        ret[:script] = nil
+        ret[:hostname] = host
+        ret
       end
     end
   end

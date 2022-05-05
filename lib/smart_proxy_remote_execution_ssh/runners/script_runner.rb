@@ -159,15 +159,14 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def preflight_checks
       ensure_remote_command(cp_script_to_remote("#!/bin/sh\nexec true", 'test'),
-        publish: true,
         error: 'Failed to execute script on remote machine, exit code: %{exit_code}.'
       )
       unless @user_method.is_a? NoopUserMethod
         path = cp_script_to_remote("#!/bin/sh\nexec #{@user_method.cli_command_prefix} true", 'effective-user-test')
         ensure_remote_command(path,
                               error: 'Failed to change to effective user, exit code: %{exit_code}',
-                              publish: true,
                               tty: true,
+                              user_method: @user_method,
                               close_stdin: false)
       end
     end
@@ -178,7 +177,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       # closed
       ensure_remote_command(
         'true',
-        publish: true,
         error: 'Failed to establish connection to remote host, exit code: %{exit_code}'
       )
     end
@@ -309,12 +307,17 @@ module Proxy::RemoteExecution::Ssh::Runners
       @process_manager&.started? && @user_method.sent_all_data?
     end
 
-    def run_sync(command, stdin: nil, publish: false, close_stdin: true, tty: false)
+    def run_sync(command, stdin: nil, close_stdin: true, tty: false, user_method: nil)
       pm = Proxy::Dynflow::ProcessManager.new(get_args(command, tty))
-      if publish
-        pm.on_stdout { |data| publish_data(data, 'stdout', pm); '' }
-        pm.on_stderr { |data| publish_data(data, 'stderr', pm); '' }
+      callback = proc do |data|
+        data.each_line do |line|
+          logger.debug(line.chomp) if user_method.nil? || !user_method.filter_password?(line)
+          user_method.on_data(data, pm.stdin) if user_method
+        end
+        ''
       end
+      pm.on_stdout(&callback)
+      pm.on_stderr(&callback)
       pm.start!
       unless pm.status
         pm.stdin.io.puts(stdin) if stdin
@@ -372,7 +375,6 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       @logger.debug("Sending data to #{path} on remote host:\n#{data}")
       ensure_remote_command(command,
-        publish: true,
         stdin: data,
         error: "Unable to upload file to #{path} on remote system, exit code: %{exit_code}"
       )
@@ -388,7 +390,6 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def ensure_remote_directory(path)
       ensure_remote_command("mkdir -p #{path}",
-        publish: true,
         error: "Unable to create directory #{path} on remote system, exit code: %{exit_code}"
       )
     end

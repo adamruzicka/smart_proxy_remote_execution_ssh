@@ -1,6 +1,8 @@
 require 'connection_pool'
 require 'mqtt'
 
+require 'smart_proxy_remote_execution_ssh/mqtt/handler'
+
 module Proxy::RemoteExecution::Ssh
   class MQTT
     class << self

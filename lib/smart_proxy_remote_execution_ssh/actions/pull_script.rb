@@ -35,7 +35,7 @@ module Proxy::RemoteExecution::Ssh::Actions
 
       plan_event(PickupTimeout, input[:time_to_pickup], optional: true) if input[:time_to_pickup]
 
-      input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''))
+      input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''), input[:proxy_url])
       output[:state] = :ready_for_pickup
       output[:result] = []
       mqtt_start(otp_password) if input[:with_mqtt]

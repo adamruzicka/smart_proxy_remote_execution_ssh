@@ -48,6 +48,7 @@ module Proxy::RemoteExecution::Ssh
 
       if settings.mode == :'pull-mqtt'
         require 'smart_proxy_remote_execution_ssh/mqtt'
+        ::Proxy::RemoteExecution::Ssh::MQTT::Handler.start_thread!
       end
     end
 

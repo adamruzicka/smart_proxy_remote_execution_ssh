@@ -12,6 +12,7 @@ module Proxy::RemoteExecution::Ssh
         String :execution_plan_uuid, fixed: true, size: 36, null: false, index: true
         Integer :run_step_id, null: false
         String :job, text: true
+        String :proxy_url, null: false
       end
     end
 
@@ -24,13 +25,14 @@ module Proxy::RemoteExecution::Ssh
                              .select_map(:uuid)
     end
 
-    def store_job(hostname, execution_plan_uuid, run_step_id, job, uuid: SecureRandom.uuid, timestamp: Time.now.utc)
+    def store_job(hostname, execution_plan_uuid, run_step_id, job, proxy_url, uuid: SecureRandom.uuid, timestamp: Time.now.utc)
       jobs.insert(timestamp: timestamp,
                   uuid: uuid,
                   hostname: hostname,
                   execution_plan_uuid: execution_plan_uuid,
                   run_step_id: run_step_id,
-                  job: job)
+                  job: job,
+									proxy_url: proxy_url)
       uuid
     end
 
@@ -38,11 +40,11 @@ module Proxy::RemoteExecution::Ssh
       jobs.where(execution_plan_uuid: execution_plan_uuid, run_step_id: run_step_id).delete
     end
 
-    private
-
     def jobs_for_host(hostname)
       jobs.where(hostname: hostname)
     end
+
+    private
 
     def jobs
       @db[:jobs]

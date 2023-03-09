@@ -96,9 +96,7 @@ module Proxy::RemoteExecution
       end
 
       def authorized_job(uuid)
-        job_record = Proxy::RemoteExecution::Ssh.job_storage.find_job(uuid) || {}
-        return job_record if authorize_with_token(clear: false, task_id: job_record[:execution_plan_uuid]) ||
-                             job_record[:hostname] == https_cert_cn
+        Proxy::RemoteExecution::Ssh.job_storage.find_job(uuid, https_cert_cn)
       end
     end
   end

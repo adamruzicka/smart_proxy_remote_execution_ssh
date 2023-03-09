@@ -47,23 +47,18 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def init_run
-      otp_password = if with_mqtt?
-                       ::Proxy::Dynflow::OtpManager.generate_otp(execution_plan_id)
-                     end
-
       plan_event(PickupTimeout, input[:time_to_pickup], optional: true) if input[:time_to_pickup]
 
       input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''), effective_user: input[:effective_user])
       output[:state] = READY_FOR_PICKUP
       output[:result] = []
 
-      mqtt_start(otp_password) if with_mqtt?
+      mqtt_start if with_mqtt?
       suspend
     end
 
     def cleanup(_plan = nil)
       job_storage.drop_job(execution_plan_id, run_step_id)
-      Proxy::Dynflow::OtpManager.passwords.delete(execution_plan_id)
       Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.done(input[:job_uuid]) if with_mqtt?
     end
 
@@ -137,14 +132,12 @@ module Proxy::RemoteExecution::Ssh::Actions
       suspend unless exit_code
     end
 
-    def mqtt_start(otp_password)
+    def mqtt_start
       payload = mqtt_payload_base.merge(
         content: "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}",
         metadata: {
           'event': 'start',
           'job_uuid': input[:job_uuid],
-          'username': execution_plan_id,
-          'password': otp_password,
           'return_url': "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}/update",
           'version': 'v1',
           'effective_user': input[:effective_user]

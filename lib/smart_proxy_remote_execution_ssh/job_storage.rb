@@ -14,6 +14,28 @@ module Proxy::RemoteExecution::Ssh
         String :effective_user
         String :job, text: true
       end
+
+      @db.create_table :job_plan_mappings do
+        String :job_uuid, fixed: true, size: 36, primary_key: true, null: false
+        String :execution_plan_uuid, fixed: true, size: 36, null: false
+        Integer :action_id, null: false
+      end
+    end
+
+    def find_mapping(job_uuid)
+      mappings.where(job_uuid: job_uuid).first
+    end
+
+    def create_mapping(plan_uuid, action_id, job_uuid: SecureRandom.uuid)
+      mappings.insert(job_uuid, plan_uuid, action_id)
+    end
+
+    def find_mapping_by_plan(plan_uuid)
+      mappings.where(execution_plan_uuid: plan_uuid).first
+    end
+
+    def is_mapping_available?(job_uuid)
+      mappings.where(job_uuid: job_uuid).any?
     end
 
     def find_job(uuid, hostname)
@@ -48,6 +70,10 @@ module Proxy::RemoteExecution::Ssh
 
     def jobs
       @db[:jobs]
+    end
+
+    def mappings
+      @db[:job_plan_mappings]
     end
   end
 end

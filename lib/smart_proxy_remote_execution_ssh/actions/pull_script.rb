@@ -20,8 +20,9 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     execution_plan_hooks.use :cleanup, :on => :stopped
 
-    def plan(action_input)
+    def plan(action_input, with_chunks = false)
       super(action_input)
+      input[:with_chunks] = with_chunks
     end
 
     def run(event = nil)
@@ -196,6 +197,10 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def with_mqtt?
       ::Proxy::RemoteExecution::Ssh.with_mqtt?
+    end
+
+    def format_output
+      stored_output_chunks.map { |c| c[:chunk] }.reduce([], &:concat)
     end
   end
 end

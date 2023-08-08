@@ -166,7 +166,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       # pipe the output to tee while capturing the exit code in a file
       <<-SCRIPT.gsub(/^\s+\| /, '')
       | sh -c "(#{@user_method.cli_command_prefix}#{su_method ? "'#{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}; echo \\$?>#{@exit_code_path}) | /usr/bin/tee #{@output_path}
-      | exit \\$(cat #{@exit_code_path})"
+      | if [ -f #{@exit_code_path} ] && [ \\$(wc -l < #{@exit_code_path}) -gt 0 ]; then
+      |   exit \\$(cat #{@exit_code_path})
+      | else
+      |   exit 1
+      | fi"
       SCRIPT
     end
 

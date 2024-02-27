@@ -2,12 +2,13 @@
 
 # set -x
 
-cd "$(dirname "$0")"
-
 die() {
     echo "$2" >&2
     exit "$1"
 }
+
+PROJECT_ROOT="$(dirname "$0")"
+cd "$PROJECT_ROOT" || die 1 "Could not change working directory to '$PROJECT_ROOT'"
 
 signal_exit() {
     # Create a listener on the pipe to prevent blocking on write into the pipe
@@ -25,7 +26,7 @@ attach_done() {
 
 to_base64() {
     encoded="$(base64 --wrap 0)"
-    echo -n "\"$encoded\""
+    printf "%s" "$encoded"
 }
 
 to_json() {
@@ -43,7 +44,7 @@ to_json() {
 }
 
 random_id() {
-    cat /dev/urandom | tr -dc '[:alpha:]' | fold -w 16 | head -n 1
+    tr -dc '[:alpha:]' < /dev/urandom | fold -w 16 | head -n 1
 }
 
 json_message() {
@@ -156,7 +157,7 @@ command_dwim() {
 
 command_pstree() {
     # TODO checks
-    pstree $(cat top-pid)
+    pstree "$(cat top-pid)"
 }
 
 command_cleanup() {

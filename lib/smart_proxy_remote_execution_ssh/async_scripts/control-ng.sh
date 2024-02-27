@@ -114,7 +114,7 @@ command_kill() {
     [ -f pid ] || die 1 "No pidfile present"
 
     # We need to kill the top-level process in the unshared namespace
-    PGID="$(ps -o pgid= -p "$(cat pid)" | cut -c 2-)"
+    PGID="$(ps -o pgid= -p "$(cat pid)" | cut -c 3-)"
     if [ -z "$PGID" ]; then
         if [ -f "exit-status" ]; then
             exit "$(cat exit-status)"

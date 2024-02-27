@@ -7,8 +7,33 @@ die() {
     exit "$1"
 }
 
-PROJECT_ROOT="$(dirname "$0")"
+PROGNAME="$0"
+
+PROJECT_ROOT="$(dirname "$PROGNAME")"
 cd "$PROJECT_ROOT" || die 1 "Could not change working directory to '$PROJECT_ROOT'"
+
+usage() {
+        cat << EOF
+Usage: $PROGNAME action [args]
+
+A script runner that provides a sensible interface to running shell scripts. It expects to be placed in the same directory as a file called 'script' containing the script to execute.
+
+Actions:
+EOF
+        cat <<EOF | column -s\& -t
+start & Execute script in background
+kill & Kill running script
+attach & Attach to output from running script
+run & Start a script and attach to its output
+dwim & Do what I mean command. If done, read output and exit. If running, attach to output, otherwise start execution
+pstree & Show pstree output for the execution
+cleanup & Remove files from a run to allow running again from the same directory
+&
+Internal actions:
+inner-start & Inner plumbing to execute the script
+timestamped-jsonl KIND & Reads stdin by lines, emits timestamped JSON lines. Uses KIND as kind key in generated messages
+EOF
+}
 
 signal_exit() {
     # Create a listener on the pipe to prevent blocking on write into the pipe
@@ -235,6 +260,7 @@ case "$1" in
         command_cleanup "$@"
         ;;
     *)
-        die 1 "Unknown command '$1'"
+        usage
+        test -n "$1" && echo && die 1 "Unknown command '$1'"
         ;;
 esac

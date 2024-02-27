@@ -203,4 +203,7 @@ case "$1" in
         shift
         command_cleanup "$@"
         ;;
+    *)
+        die 1 "Unknown command '$1'"
+        ;;
 esac

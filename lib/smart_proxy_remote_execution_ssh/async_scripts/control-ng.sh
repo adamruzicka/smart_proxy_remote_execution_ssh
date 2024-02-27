@@ -33,8 +33,8 @@ to_base64() {
 
 to_json() {
     case "$JSON" in
-        python)
-            python -c 'import json; import sys; print(json.dumps(sys.stdin.read()))'
+        python3)
+            python3 -c 'import json; import sys; print(json.dumps(sys.stdin.read()))'
             ;;
         jq)
             jq -MRsc
@@ -65,8 +65,8 @@ detect_parameters() {
     if jq --version >/dev/null 2>/dev/null; then
         JSON=jq
         OUTPUT_KEY=output
-    elif python -c 'import json; import sys' >/dev/null 2>/dev/null; then
-        JSON=python
+    elif python3 -c 'import json; import sys' >/dev/null 2>/dev/null; then
+        JSON=python3
         OUTPUT_KEY=output
     else
         JSON=base64

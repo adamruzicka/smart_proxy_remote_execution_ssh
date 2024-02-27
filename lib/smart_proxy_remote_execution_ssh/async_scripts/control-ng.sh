@@ -115,6 +115,13 @@ command_kill() {
 
     # We need to kill the top-level process in the unshared namespace
     PGID="$(ps -o pgid= -p "$(cat pid)" | cut -c 2-)"
+    if [ -z "$PGID" ]; then
+        if [ -f "exit-status" ]; then
+            exit "$(cat exit-status)"
+        else
+            die 1 "Parent process of process $(cat pid) not found, exiting."
+        fi
+    fi
     pkill -9 -g "$PGID"
 
     # SESSION="$(ps -o session= -p "$(cat pid)" | cut -c 2-)"

@@ -31,7 +31,7 @@ to_base64() {
 to_json() {
     case "$JSON" in
         python)
-            python -c 'import json; import sys; print json.dumps(sys.stdin.read())'
+            python -c 'import json; import sys; print(json.dumps(sys.stdin.read()))'
             ;;
         jq)
             jq -MRsc

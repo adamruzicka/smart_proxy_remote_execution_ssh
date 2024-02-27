@@ -52,7 +52,7 @@ random_id() {
 json_message() {
     timestamp="$(TZ=UTC date -Ins)"
     cat <<EOF
-{ "timestamp": "$timestamp", "kind": "$1", "$OUTPUT_KEY": $(echo "$2" | to_json), "id": "$(random_id)" }
+{ "timestamp": "$timestamp", "kind": "$1", "$OUTPUT_KEY": $(echo "$2" | to_json), "id": "$(random_id)", "version": "v1" }
 EOF
 }
 

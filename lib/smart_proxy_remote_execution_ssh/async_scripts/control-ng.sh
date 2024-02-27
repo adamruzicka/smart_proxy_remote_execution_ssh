@@ -13,9 +13,10 @@ cd "$PROJECT_ROOT" || die 1 "Could not change working directory to '$PROJECT_ROO
 signal_exit() {
     # Create a listener on the pipe to prevent blocking on write into the pipe
     cat "done" >/dev/null &
+    cat_pid="$!"
     echo >"done"
-    kill %cat
-    wait %cat
+    kill "$cat_pid"
+    wait "$cat_pid"
     rm 'done'
     rm 'stdout-pipe'
     rm 'stderr-pipe'
@@ -103,6 +104,9 @@ command_start() {
 command_run() {
     command_start
     echo $$ >top-pid
+
+    trap signal_exit EXIT
+
     sleep 0.1
     command_attach
 }

@@ -85,7 +85,9 @@ command_start() {
     mkfifo "stdout-pipe"
     mkfifo "stderr-pipe"
 
+    # shellcheck disable=SC2094
     "$0" timestamped-jsonl stdout >stdout < stdout-pipe &
+    # shellcheck disable=SC2094
     "$0" timestamped-jsonl stderr >stderr < stderr-pipe &
 
     (if [ $HAS_USERNS -eq 1 ]; then

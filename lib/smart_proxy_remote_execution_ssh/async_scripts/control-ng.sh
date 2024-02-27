@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/sh
 
 # set -x
 
@@ -17,6 +17,8 @@ signal_exit() {
     kill %cat
     wait %cat
     rm 'done'
+    rm 'stdout-pipe'
+    rm 'stderr-pipe'
 }
 
 attach_done() {
@@ -80,12 +82,18 @@ command_start() {
     touch stdout
     touch stderr
     mkfifo "done"
+    mkfifo "stdout-pipe"
+    mkfifo "stderr-pipe"
+
+    "$0" timestamped-jsonl stdout >stdout < stdout-pipe &
+    "$0" timestamped-jsonl stderr >stderr < stderr-pipe &
 
     (if [ $HAS_USERNS -eq 1 ]; then
          unshare -Ucfp --mount-proc --kill-child "$0" inner-start
      else
          nohup "$0" inner-start
-     fi) > >("$0" timestamped-jsonl stdout >stdout) 2> >("$0" timestamped-jsonl stderr >stderr) &
+     fi) > stdout-pipe 2> stderr-pipe &
+
     echo $! >pid
     cp pid top-pid
 }

@@ -109,9 +109,26 @@ command_run() {
 
 timestamped_jsonl() {
     kind="$1"
-    while read -r LINE; do
-        json_message "$kind" "$LINE"
-    done
+    if [ "$JSON" = "python3" ]; then
+        python3 -c "
+import datetime
+import json
+import random
+import string
+import sys
+
+while l := sys.stdin.readline():
+    now = datetime.datetime.now()
+    id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+    msg = {'version': 'v1', 'timestamp': now.isoformat(), 'id': id, 'kind': '$kind', '$OUTPUT_KEY': l}
+    print(json.dumps(msg))
+    sys.stdout.flush()
+"
+    else
+        while read -r LINE; do
+            json_message "$kind" "$LINE"
+        done
+    fi
 }
 
 command_inner_start() {

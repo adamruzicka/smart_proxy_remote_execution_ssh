@@ -159,6 +159,12 @@ command_pstree() {
     pstree $(cat top-pid)
 }
 
+command_cleanup() {
+    for f in exit-status pid stdout stderr top-pid; do
+        [ -f "$f" ] && rm "$f"
+    done
+}
+
 case "$1" in
     "start")
         command_start "$@"
@@ -191,5 +197,9 @@ case "$1" in
         shift
         detect_parameters
         timestamped_jsonl "$@"
+        ;;
+    "cleanup")
+        shift
+        command_cleanup "$@"
         ;;
 esac

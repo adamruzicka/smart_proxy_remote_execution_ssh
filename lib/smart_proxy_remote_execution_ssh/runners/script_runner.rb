@@ -36,6 +36,10 @@ module Proxy::RemoteExecution::Ssh::Runners
     def cli_command_prefix; end
 
     def login_prompt; end
+
+    def wrap_command(command)
+      "#{cli_command_prefix} sh -c 'echo SUCCESS-EFFECTIVE; #{command} </dev/null'"
+    end
   end
 
   class SudoUserMethod < EffectiveUserMethod
@@ -88,6 +92,10 @@ module Proxy::RemoteExecution::Ssh::Runners
     def cli_command_prefix; end
 
     def reset; end
+
+    def wrap_command(command)
+      "command </dev/null"
+    end
   end
 
   class ScriptRunner < Proxy::Dynflow::Runner::Base
@@ -172,7 +180,7 @@ module Proxy::RemoteExecution::Ssh::Runners
           echo SUCCESS-EXEC
           echo \$$ > #{@pid_path}
           (
-            #{@user_method.cli_command_prefix}#{su_method ? "'echo SUCCESS-EFFECTIVE; exec #{@remote_script} < /dev/null '" : "sh -c 'echo SUCCESS-EFFECTIVE; exec #{@remote_script}' < /dev/null"}"
+            #{@user_method.wrap_command(@remote_script)}
             echo \$? >#{@exit_code_path}
           ) | tee #{@output_path}
         else

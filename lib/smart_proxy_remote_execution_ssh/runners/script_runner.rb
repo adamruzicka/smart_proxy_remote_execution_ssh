@@ -149,7 +149,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       ensure_local_directory(@socket_working_dir)
       @connection = MultiplexedSSHConnection.new(@options.merge(:id => @id), logger: logger)
       @connection.establish!
-      preflight_checks
       detect_capabilities
       prepare_start
       script = initialization_script
@@ -198,9 +197,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       su_method = @user_method.instance_of?(SuUserMethod)
       wrapper = <<~SCRIPT
         if [ "$1" == "inner" ]; then
+          echo SUCCESS-EXEC
           echo \$$ > #{@pid_path}
           (
-            #{@user_method.cli_command_prefix}#{su_method ? "'exec #{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}
+            #{@user_method.cli_command_prefix}#{su_method ? "'echo SUCCESS-EFFECTIVE; exec #{@remote_script} < /dev/null '" : "sh -c 'echo SUCCESS-EFFECTIVE; exec #{@remote_script}' < /dev/null"}"
             echo \$? >#{@exit_code_path}
           ) | tee #{@output_path}
         else
@@ -211,6 +211,7 @@ module Proxy::RemoteExecution::Ssh::Runners
         wrapper,
         File.join(File.dirname(@remote_script), 'script-wrapper'),
         555)
+      @stage = :exec
     end
 
     # the script that initiates the execution
@@ -263,8 +264,27 @@ module Proxy::RemoteExecution::Ssh::Runners
     def publish_data(data, type, pm = nil)
       pm ||= @process_manager
       data = data.dup if data.frozen?
-      super(data.force_encoding('UTF-8'), type) unless @user_method.filter_password?(data)
-      @user_method.on_data(data, pm.stdin) if pm
+      if @stage == :exec && data == "SUCCESS-EXEC\n"
+        @stage = @user_method.is_a?(NoopUserMethod) ? :live : :effective
+      elsif @stage == :effective && data == "SUCCESS-EFFECTIVE\n"
+        @stage = :live
+      elsif @stage == :effective
+        super(data.force_encoding('UTF-8'), type)
+        @user_method.on_data(data, pm.stdin)
+      else
+        super(data.force_encoding('UTF-8'), type)
+      end
+    end
+
+    def publish_exit_status(status)
+      case @stage
+      when :exec
+        raise "Failed to execute script on remote machine, exit code: #{status}."
+      when :effective
+        raise "Failed to change to effective user, exit code: #{status}."
+      else # aka when :live
+        super status
+      end
     end
 
     private
@@ -291,6 +311,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       cmd = @connection.command([tty_flag(true), command].flatten.compact)
       log_command(cmd)
       initialize_command(*cmd)
+
+      # Walk the beginning of the execution so that we don't get control messages mixed with user output
+      until @stage == :live || @process_manager.done? do
+        @process_manager.process(timeout: 0.1)
+      end
 
       true
     end

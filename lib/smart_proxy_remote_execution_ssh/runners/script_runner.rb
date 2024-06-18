@@ -118,7 +118,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       @first_execution = options.fetch(:first_execution, false)
       @user_method = user_method
       @options = options
-      @supports_unshare = false
     end
 
     def self.build(options, suspended_action:)
@@ -149,7 +148,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       ensure_local_directory(@socket_working_dir)
       @connection = MultiplexedSSHConnection.new(@options.merge(:id => @id), logger: logger)
       @connection.establish!
-      detect_capabilities
       prepare_start
       script = initialization_script
       logger.debug("executing script:\n#{indent_multiline(script)}")
@@ -161,16 +159,6 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def trigger(*args)
       run_async(*args)
-    end
-
-    def detect_capabilities
-      script = cp_script_to_remote("#!/bin/sh\nexec #{UNSHARE_PREFIX} true")
-      begin
-        ensure_remote_command(script)
-        @supports_unshare = true
-      rescue; end
-      # The path should already be escaped
-      ensure_remote_command("rm #{script}")
     end
 
     def prepare_start
@@ -188,7 +176,11 @@ module Proxy::RemoteExecution::Ssh::Runners
             echo \$? >#{@exit_code_path}
           ) | tee #{@output_path}
         else
-          exec #{UNSHARE_PREFIX} "$0" inner
+          UNSHARE=''
+          if #{UNSHARE_PREFIX} true >/dev/null 2>/dev/null; then
+            UNSHARE='#{UNSHARE_PREFIX}'
+          fi
+          exec $UNSHARE "$0" inner
         fi
       SCRIPT
       @remote_script_wrapper = upload_data(
